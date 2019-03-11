@@ -20,6 +20,8 @@ public class TextLine {
 2.创建图片基础工具类 ImageUtil.java
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
 import sun.font.FontDesignMetrics;
 
 import javax.imageio.ImageIO;
@@ -31,6 +33,7 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.util.ArrayList;
@@ -219,7 +222,40 @@ public class ImageUtil {
         // 释放图形上下文使用的系统资源
         g2d.dispose();
     }
-  }  
+    
+    /**
+     * 引入自定义的字体
+     *
+     * @param fontsPath 字体路径
+     * @param fontStyle 字体样式
+     * @param fontSize  字体大小
+     * @return
+     */
+    public static Font customizeFont(String fontsPath,int fontStyle, float fontSize) {
+        Font font = null;
+        InputStream inputStream = null;
+        try {
+            Resource resource = new ClassPathResource(fontsPath);
+            inputStream = resource.getInputStream();
+            Font tempFont = Font.createFont(Font.TRUETYPE_FONT, inputStream);
+            font = tempFont.deriveFont(fontSize);
+            font = font.deriveFont(fontStyle);
+            GraphicsEnvironment ge = GraphicsEnvironment
+                    .getLocalGraphicsEnvironment();
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                inputStream.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        return font;
+    }
+  } 
+  
+  
 ```
 
 
@@ -264,58 +300,15 @@ public class Test extends BaseService {
 
 
     /**
-     * 生成海报(1)
-     * 支持长图／单图／四宫格
-     *
-     * @param openPlatformId
-     * @param uatShortName
-     * @param productPosterBean
-     */
-    public ResponseContent productPoster(String openPlatformId, String uatShortName, ProductPosterBean productPosterBean) throws Exception {
-
-        // 根据openPlateformId查找用户
-        User user = getAppUser(openPlatformId, uatShortName);
-        if (Preconditions.isBlank(user)) {
-            throw new MwException("未查询到相关用户信息");
-        }
-        if (!userService.checkUserJoinCommunity(openPlatformId, uatShortName)) {
-            logger.info("未加入星球，openPlatformId={}", openPlatformId);
-        }
-        // 获取社群app
-        App communityApp = getAppByUatShortName(uatShortName);
-
-        String qiNiuKey = null;
-        DistributePoster poster = distributePosterRepository.findByDeletedIsFalseAndUserIdAndAppId(user.getId(), communityApp.getId());
-        if (Preconditions.isNotBlank(poster)) {
-            qiNiuKey = poster.getQnKey();
-        }
-
-        Product product = productRepository.findByIdAndDeletedIsFalse(productPosterBean.getProductId());
-        //生成海报并上传七牛
-        DefaultPutRet putRet = productPosterShareImage(product, productPosterBean.getPosterType(),
-                productPosterBean.getPictureBeans(), productPosterBean.isShowSalePrice(), productPosterBean.getQrCodeUrl(), qiNiuKey);
-        if (Preconditions.isNotBlank(putRet.hash)) {
-            //保存或更新用户海报
-            updateProductPoster(poster, user, communityApp, putRet);
-            return ResponseContent.buildSuccess("success", domain + putRet.key);
-        }
-
-        return ResponseContent.buildSuccess("success");
-    }
-
-    /**
-     * 生成海报(2)
+     * 生成分销海报
      *
      * @param
      * @throws Exception
      */
     public DefaultPutRet productPosterShareImage(Product product, PosterTypeEnum posterType, List<PictureBean> pictureBeans, boolean showSalePrice, String qrCodeUrl, String qiNiuKey) {
         try {
-            //原始宽度
             int srcWidth = 750;
-            //原始高度
             int srcHeight = 400;
-            //边距
             int padding = 30;
             List<BufferedImage> images = new ArrayList<>();
             if (PosterTypeEnum.L_PIC == posterType || PosterTypeEnum.M_PIC == posterType) {
@@ -360,7 +353,7 @@ public class Test extends BaseService {
         } catch (Exception e) {
             log.error(e.getMessage(), e);
         }
-        
+
         return null;
     }
 
@@ -390,9 +383,11 @@ public class Test extends BaseService {
      */
     private static BufferedImage drawHead(BufferedImage bufferedImage, String qrCode, Product product, int padding, boolean showSalePrice, int srcWidth) throws IOException {
 
+        String fontsPath = "fonts/PingFang.ttf";
+
         //绘制
         String title = product.getName();
-        Font font = new Font("PingFang SC", Font.BOLD, 32);
+        Font font = ImageUtil.customizeFont(fontsPath,Font.PLAIN, 32);
         List<TextLine> list = ImageUtil.split2lines(title, 690, font);
         for (int i = 0; i < list.size(); i++) {
             bufferedImage = ImageUtil.drawTextGraphics(list.get(i).getLineText(), 1.0f, bufferedImage, font, new Color(74, 74, 74), 30, 60 + (i + 1) * 32 + i * 20);
@@ -401,7 +396,7 @@ public class Test extends BaseService {
         //绘制价格
         if (showSalePrice) {
             String price = "¥ " + product.getSalePrice().setScale(2, RoundingMode.HALF_UP).toPlainString();
-            font = new Font("PingFang SC", Font.BOLD, 36);
+            font = ImageUtil.customizeFont(fontsPath,Font.BOLD, 36);
             list = ImageUtil.split2lines(price, srcWidth, font);
             for (int i = 0; i < list.size(); i++) {
                 bufferedImage = ImageUtil.drawTextGraphics(list.get(i).getLineText(), 1.0f, bufferedImage, font, new Color(255, 174, 40), srcWidth - 2 * padding - list.get(i).getWidth() + 18, 116 + (i + 1) * 36);
@@ -410,7 +405,7 @@ public class Test extends BaseService {
 
         //绘制描述
         String description = product.getDescription();
-        font = new Font("PingFang SC", Font.BOLD, 24);
+        font = ImageUtil.customizeFont(fontsPath,Font.BOLD, 24);
         list = ImageUtil.split2lines(description, 530, font);
         for (int i = 0; i < list.size(); i++) {
             logger.info(list.get(i).getLineText());
@@ -463,19 +458,21 @@ public class Test extends BaseService {
 
     public static void main(String[] args) throws Exception {
         int padding = 30;
+        String fontsPath = "fonts/PingFang.ttf";
+
         BufferedImage bufferedImage = ImageUtil.drawBackground(750, 1500, Color.WHITE);
 
-        String title = "商品名称什显示十个字商品名称什显示十个字商品名称什显示十个";
-        Font font = new Font("PingFang SC", Font.BOLD, 32);
+        String title = "星球使者星球使者星球使者星球使者星球使者星球使者星球使者星球使者";
+
+        Font font = ImageUtil.customizeFont(fontsPath,Font.PLAIN, 32);
         List<TextLine> list = ImageUtil.split2lines(title, 690, font);
         for (int i = 0; i < list.size(); i++) {
-            bufferedImage = ImageUtil.drawStringGrapics(list.get(i).getLineText(), 1.0f, bufferedImage, "PingFang SC",
-                    32, Font.BOLD, new Color(74, 74, 74), 30, 60 + (i + 1) * 32 + i * 20);
+            bufferedImage = ImageUtil.drawTextGraphics(list.get(i).getLineText(), 1.0f, bufferedImage, font, new Color(74, 74, 74), 30, 60 + (i + 1) * 32 + i * 20);
         }
 
         String price = "$9995.45";
-        font = new Font("PingFang SC", Font.BOLD, 36);
-        list = ImageUtil.split2lines("商品名称什显", 750, font);
+        font = ImageUtil.customizeFont(fontsPath,Font.BOLD, 36);
+        list = ImageUtil.split2lines(price, 750, font);
         for (int i = 0; i < list.size(); i++) {
             bufferedImage = ImageUtil.drawStringGrapics(list.get(i).getLineText(), 1.0f, bufferedImage, "PingFang SC",
                     36, Font.BOLD, new Color(255, 174, 40), 750 - 2 * padding - list.get(i).getWidth() + 18, 116 + (i + 1) * 36);
@@ -483,7 +480,7 @@ public class Test extends BaseService {
 
         //商品名称（需要换行）
         String name = "自从《新个税法》实施以后，谁更受2益就成为4全民焦点。起征点多少合适？谁将受益？谁被“多征税”？税改是“劫富济贫”？我们梳理了近40年更使身处各用一般工薪阶层，土豪请绕行）";
-        font = new Font("PingFang SC", Font.BOLD, 24);
+        font = ImageUtil.customizeFont(fontsPath,Font.BOLD, 24);
         list = ImageUtil.split2lines(name, 530, font);
         for (int i = 0; i < list.size(); i++) {
             logger.info(list.get(i).getLineText());
@@ -497,11 +494,8 @@ public class Test extends BaseService {
 
         bufferedImage = drawPic(bufferedImage, "https://img.liaoyantech.cn/FrORS2WzPcOU6KDhWhv16_umdglF", 690, 0, padding, 420);
 
-        bufferedImage = drawPic(bufferedImage, "https://img.liaoyantech.cn/FrORS2WzPcOU6KDhWhv16_umdglF", 690, 0, padding, 420 + 690 + padding);
-
         File outputfile = new File("/Users/leon/pic/test.png");
         ImageIO.write(bufferedImage, "png", outputfile);
-    }
-}
 
+    }
 ```
