@@ -498,4 +498,5 @@ public class Test extends BaseService {
         ImageIO.write(bufferedImage, "png", outputfile);
 
     }
+}
 ```
