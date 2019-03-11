@@ -1,5 +1,5 @@
 ### java服务端 生成图片
-```
+```python
 1.创建文本基类，可换行
 
 import lombok.AllArgsConstructor;
@@ -16,7 +16,7 @@ public class TextLine {
 
 }
 ```
-```
+```python
 2.创建图片基础工具类 ImageUtil.java
 
 import lombok.extern.slf4j.Slf4j;
@@ -223,7 +223,7 @@ public class ImageUtil {
 ```
 
 
-```
+```python
 3.创建测试类
 
 import com.qiniu.storage.model.DefaultPutRet;
@@ -501,12 +501,7 @@ public class Test extends BaseService {
 
         File outputfile = new File("/Users/leon/pic/test.png");
         ImageIO.write(bufferedImage, "png", outputfile);
-
     }
-
 }
 
 ```
-
-
-
