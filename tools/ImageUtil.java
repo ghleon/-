@@ -1,34 +1,4 @@
-##java服务端 生成图片
-```python
-
-pom.xml引入jar
-<dependency>
-    <groupId>net.coobird</groupId>
-    <artifactId>thumbnailator</artifactId>
-    <version>0.4.8</version>
-</dependency>
-
-
-
-
-1.创建文本基类，可换行
-
-import lombok.AllArgsConstructor;
-import lombok.Data;
-
-@Data
-@AllArgsConstructor
-public class TextLine {
-
-    //单行内容
-    private String lineText;
-    //单行内容期望宽度
-    private int width;
-
-}
-```
-```python
-2.创建图片基础工具类 ImageUtil.java
+package tools;
 
 import cn.magicwindow.score.common.bean.TextLine;
 import lombok.extern.slf4j.Slf4j;
@@ -48,13 +18,7 @@ import java.awt.geom.RoundRectangle2D;
 import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
 import java.awt.image.PixelGrabber;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.math.BigDecimal;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -63,6 +27,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 
+/**
+ * @author
+ * @package
+ * @class ImageUtil
+ * @date 2019/09/19 11:29
+ * @description
+ */
 @Slf4j
 public class ImageUtil {
 
@@ -98,34 +69,6 @@ public class ImageUtil {
         // 释放图形上下文使用的系统资源
         g2d.dispose();
     }
-
-    private static final String INVITE_COPY_POSTER = "邀请您共品";
-
-    private static void drawStringGraphics(String nickName, float alpha,
-                                           BufferedImage buffImg, String productName) {
-        // 创建Graphics2D对象，用在底图对象上绘图
-        Graphics2D g2d = buffImg.createGraphics();
-
-        // 在图形和图像中实现混合和透明效果
-        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_ATOP, alpha));
-
-        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-
-        Font font = new Font("PingFang SC", Font.BOLD, 28);
-        int startX = 118;
-
-        g2d.setFont(font);
-        g2d.setColor(Color.white);
-        g2d.drawString(INVITE_COPY_POSTER + productName, startX, 92);
-
-        g2d.setFont(font);
-        g2d.setColor(new Color(249, 222, 186));
-        g2d.drawString(nickName, startX, 56);
-
-        // 释放图形上下文使用的系统资源
-        g2d.dispose();
-    }
-
 
     public static BufferedImage drawStringGraphics(String nickName, float alpha,
                                                    BufferedImage buffImg, String fontStyle, int size, int fontBold, Color color, int startX, int endY) {
@@ -562,6 +505,45 @@ public class ImageUtil {
     }
 
     /**
+     * 绘制圆角矩形
+     *
+     * @param buffImg
+     * @param borderColor
+     * @param startX
+     * @param starY
+     * @param width
+     * @param height
+     * @param arcWidth
+     * @param arcHeight
+     * @param borderHeight
+     * @return
+     */
+    public static BufferedImage drawArcRectangleGraphics(BufferedImage buffImg, Color borderColor,Color bgColor ,int startX, int starY, int width, int height, int arcWidth, int arcHeight, float borderHeight) {
+        Graphics2D g2d = buffImg.createGraphics();
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setColor(borderColor);
+
+        // 2. 填充一个矩形
+//        g2d.fillRect(startX, starY, width, height);
+
+        // 3. 绘制一个圆角矩形: 起点(30, 150), 宽80, 高100, 圆角宽30, 圆角高30
+        g2d.drawRoundRect(startX, starY, width, height, arcWidth, arcHeight);
+        if (Preconditions.isNotBlank(borderHeight) && borderHeight > 0f) {
+            g2d.setStroke(new BasicStroke(borderHeight));
+        }
+
+        if (Preconditions.isNotBlank(bgColor)) {
+            g2d.setColor(bgColor);
+            g2d.fillRoundRect(startX, starY, width, height, arcWidth, arcHeight);
+        }
+
+        g2d.dispose();
+
+        return buffImg;
+    }
+
+
+    /**
      * 设置渐变色
      *
      * @param buffImg
@@ -578,6 +560,33 @@ public class ImageUtil {
         Rectangle2D.Float rect = new Rectangle2D.Float(startX, starY, width, height);// 创建矩形对象
         // 创建循环渐变的GraphientPaint对象
         GradientPaint paint = new GradientPaint(startX, starY, starBackground, width, height, endBackground);
+        g2d.setPaint(paint);// 设置渐变
+        g2d.fillRect(startX, starY, width, height);
+        g2d.fill(rect);// 绘制矩形
+        g2d.dispose();
+        return buffImg;
+    }
+
+    /**
+     * 渐变色新版本(以后请使用过此版本)
+     *
+     * @param buffImg
+     * @param starBackground
+     * @param endBackground
+     * @param startX
+     * @param starY
+     * @param width
+     * @param height
+     * @param endX
+     * @param endY
+     * @param cyclic
+     * @return
+     */
+    public static BufferedImage paintGradientPaint2(BufferedImage buffImg, Color starBackground, Color endBackground, int startX, int starY, int width, int height, int endX, int endY, boolean cyclic) {
+        Graphics2D g2d = buffImg.createGraphics();
+        Rectangle2D.Float rect = new Rectangle2D.Float(startX, starY, width, height);// 创建矩形对象
+        // 创建循环渐变的GraphientPaint对象
+        GradientPaint paint = new GradientPaint(startX, starY, starBackground, endX, endY, endBackground, cyclic);
         g2d.setPaint(paint);// 设置渐变
         g2d.fillRect(startX, starY, width, height);
         g2d.fill(rect);// 绘制矩形
@@ -763,7 +772,7 @@ public class ImageUtil {
     }
 
     /**
-     * @param bufferedImage 画布
+     * @param bufferedImage       画布
      * @param targetBufferedImage 绘制的图片
      * @param width
      * @param height
@@ -871,7 +880,7 @@ public class ImageUtil {
             pg = new PixelGrabber(im, 0, 0, w, h, pix, 0, w);
             if (pg.grabPixels() != true) {
                 try {
-                    throw new java.awt.AWTException("pg error" + pg.status());
+                    throw new AWTException("pg error" + pg.status());
                 } catch (Exception eq) {
                     eq.printStackTrace();
                 }
@@ -1197,256 +1206,28 @@ public class ImageUtil {
         BufferedImage bufferedImage = ImageIO.read(new URL(imageUrl));
         int width = bufferedImage.getWidth();
         int height = bufferedImage.getHeight();
-        bufferedImage = ImageUtil.cropImage(bufferedImage, width / 2 - 200, height / 2 - 200, width / 2 + 200, height / 2 + 200);
+
+        int startx = 0;
+        int startY = 0;
+        int endx = 0;
+        int endY = 0;
+        if (width > height)  {
+            startx = width/2 - height/2;
+            startY = height/2 - height/2;
+            endx = width/2 + height/2;
+            endY = height/2 + height/2;
+        } else {
+            startx = width/2 - width/2;
+            startY = height/2 - width/2;
+            endx = width/2 + width/2;
+            endY = height/2 + width/2;
+        }
+
+        bufferedImage = ImageUtil.cropImage(bufferedImage, startx, startY, endx, endY);
+//        BufferedImage bufferedImage = ImageUtil.drawBackground(750, 750, Color.BLACK);
+//        ImageUtil.paintGradientPaint2(bufferedImage, new Color(255, 255, 255, 0), new Color(255, 255, 255), 0, 100, 750, 204, 0, 300, false);
         File outputfile = new File("/Users/leon/pic/test.png");
         ImageIO.write(bufferedImage, "png", outputfile);
     }
 
 }
-
-  
-  
-```
-
-
-```python
-3.创建测试类
-
-import com.qiniu.storage.model.DefaultPutRet;
-import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-
-import javax.imageio.ImageIO;
-import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
-import java.math.RoundingMode;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
-
-@Slf4j
-@Service
-public class Test extends BaseService {
-
-    private static final Logger logger = LoggerFactory.getLogger(Test.class);
-
-    @Autowired
-    private QiniuUtil qiniuUtil;
-
-    @Value("${qiniu.image.domain}")
-    private String domain;
-
-    @Autowired
-    private ProductRepository productRepository;
-
-    @Autowired
-    private DistributePosterRepository distributePosterRepository;
-
-
-    /**
-     * 生成分销海报
-     *
-     * @param
-     * @throws Exception
-     */
-    public DefaultPutRet productPosterShareImage(Product product, PosterTypeEnum posterType, List<PictureBean> pictureBeans, boolean showSalePrice, String qrCodeUrl, String qiNiuKey) {
-        try {
-            int srcWidth = 750;
-            int srcHeight = 400;
-            int padding = 30;
-            List<BufferedImage> images = new ArrayList<>();
-            if (PosterTypeEnum.L_PIC == posterType || PosterTypeEnum.M_PIC == posterType) {
-                images = convertImage(pictureBeans, 690, 0);
-                //长图
-                for (BufferedImage image : images) {
-                    srcHeight += (image.getHeight() + padding);
-                }
-                srcHeight += (90 - padding);
-            } else {
-                //四宫格
-                images = convertImage(pictureBeans, 330, 330);
-                srcHeight += Math.ceil(images.size() / 2.0) * (330 + padding);
-                srcHeight += (90 - padding);
-            }
-
-            //背景图
-            BufferedImage bufferedImage = ImageUtil.drawBackground(srcWidth, srcHeight, Color.WHITE);
-
-            //绘制海报头部
-            bufferedImage = drawHead(bufferedImage, qrCodeUrl, product, padding, showSalePrice, srcWidth);
-
-            int lastY = 400;
-            //图片
-            if (PosterTypeEnum.F_PIC == posterType) {
-                //四宫格
-                for (int i = 0; i < images.size(); i++) {
-                    bufferedImage = ImageUtil.watermark(bufferedImage, images.get(i), padding + (i % 2) * (330 + 30), lastY, 1.0f);
-                    lastY += (i % 2) * (330 + 30);
-                }
-            } else {
-                //长图 or one pic
-                for (int i = 0; i < images.size(); i++) {
-                    bufferedImage = ImageUtil.watermark(bufferedImage, images.get(i), padding, lastY, 1.0f);
-                    lastY += (images.get(i).getHeight() + padding);
-                }
-            }
-
-            byte[] bytes = ImageUtil.bufferedImageToByte(bufferedImage, "png");
-            byte[] compressBytes = ImageUtil.compress(bytes, 1, "JPEG");
-            return qiniuUtil.uploadImage(compressBytes, qiNiuKey);
-        } catch (Exception e) {
-            log.error(e.getMessage(), e);
-        }
-
-        return null;
-    }
-
-    /**
-     * 获取images
-     *
-     * @param pictureBeans 图片
-     * @param width        图片宽度
-     * @param height       图片高度
-     * @return
-     */
-    private static List<BufferedImage> convertImage(List<PictureBean> pictureBeans, int width, int height) {
-        List<BufferedImage> images = new ArrayList<>();
-        pictureBeans.forEach(bean -> {
-            BufferedImage image = ImageUtil.loadAndZoomPic(bean.getImageUrl(), width, height);
-            if (Preconditions.isNotBlank(image)) {
-                images.add(image);
-            }
-        });
-        return images;
-    }
-
-    /**
-     * 绘制标题和描述二维码
-     *
-     * @return
-     */
-    private static BufferedImage drawHead(BufferedImage bufferedImage, String qrCode, Product product, int padding, boolean showSalePrice, int srcWidth) throws IOException {
-
-        String fontsPath = "fonts/PingFang.ttf";
-
-        //绘制
-        String title = product.getName();
-        Font font = ImageUtil.customizeFont(fontsPath,Font.PLAIN, 32);
-        List<TextLine> list = ImageUtil.split2lines(title, 690, font);
-        for (int i = 0; i < list.size(); i++) {
-            bufferedImage = ImageUtil.drawTextGraphics(list.get(i).getLineText(), 1.0f, bufferedImage, font, new Color(74, 74, 74), 30, 60 + (i + 1) * 32 + i * 20);
-        }
-
-        //绘制价格
-        if (showSalePrice) {
-            String price = "¥ " + product.getSalePrice().setScale(2, RoundingMode.HALF_UP).toPlainString();
-            font = ImageUtil.customizeFont(fontsPath,Font.BOLD, 36);
-            list = ImageUtil.split2lines(price, srcWidth, font);
-            for (int i = 0; i < list.size(); i++) {
-                bufferedImage = ImageUtil.drawTextGraphics(list.get(i).getLineText(), 1.0f, bufferedImage, font, new Color(255, 174, 40), srcWidth - 2 * padding - list.get(i).getWidth() + 18, 116 + (i + 1) * 36);
-            }
-        }
-
-        //绘制描述
-        String description = product.getDescription();
-        font = ImageUtil.customizeFont(fontsPath,Font.BOLD, 24);
-        list = ImageUtil.split2lines(description, 530, font);
-        for (int i = 0; i < list.size(); i++) {
-            logger.info(list.get(i).getLineText());
-            logger.info("width:" + list.get(i).getWidth());
-            bufferedImage = ImageUtil.drawTextGraphics(list.get(i).getLineText(), 1.0f, bufferedImage, font, new Color(155, 155, 155), padding, 220 + (i + 1) * 24 + i * 12);
-        }
-
-        //二维码
-        BufferedImage qcodeImg = QrcodeUtil.generatorQrCode(qrCode, 150, 150);
-        bufferedImage = ImageUtil.watermark(bufferedImage, qcodeImg, srcWidth - 2 * padding - 110, 206, 1.0f);
-
-        return bufferedImage;
-    }
-
-    //绘图
-    private static BufferedImage drawPic(BufferedImage bufferedImage, String imageUrl, int width, int height, int x, int y) throws Exception {
-        BufferedImage src = ImageIO.read(new URL(imageUrl));
-        int srcWidth = src.getWidth();
-        int srcHeight = src.getHeight();
-
-        if (width == 0 && height > 0) {
-            width = (int) (srcWidth * 1.0 * height / srcHeight);
-        } else if (width > 0 && height == 0) {
-            height = (int) (srcHeight * 1.0 * width / srcWidth);
-        }
-
-        bufferedImage = ImageUtil.watermark(bufferedImage, ImageUtil.zoomImage(src, width, height), x, y, 1.0f);
-        return bufferedImage;
-    }
-
-    /**
-     * 保存或更新用户海报
-     *
-     * @param poster
-     * @param user
-     * @param communityApp
-     * @throws Exception
-     */
-    private void updateProductPoster(DistributePoster poster, User user, App communityApp, DefaultPutRet putRet) throws Exception {
-        if (Preconditions.isBlank(poster)) {
-            poster = new DistributePoster();
-            poster.setAppId(communityApp.getId());
-            poster.setUserId(user.getId());
-        }
-        poster.setImageUrl(domain + putRet.key);
-        poster.setQiNiuHash(putRet.hash);
-        poster.setQnKey(putRet.key);
-        distributePosterRepository.save(poster);
-    }
-
-    public static void main(String[] args) throws Exception {
-        int padding = 30;
-        String fontsPath = "fonts/PingFang.ttf";
-
-        BufferedImage bufferedImage = ImageUtil.drawBackground(750, 1500, Color.WHITE);
-
-        String title = "星球使者星球使者星球使者星球使者星球使者星球使者星球使者星球使者";
-
-        Font font = ImageUtil.customizeFont(fontsPath,Font.PLAIN, 32);
-        List<TextLine> list = ImageUtil.split2lines(title, 690, font);
-        for (int i = 0; i < list.size(); i++) {
-            bufferedImage = ImageUtil.drawTextGraphics(list.get(i).getLineText(), 1.0f, bufferedImage, font, new Color(74, 74, 74), 30, 60 + (i + 1) * 32 + i * 20);
-        }
-
-        String price = "$9995.45";
-        font = ImageUtil.customizeFont(fontsPath,Font.BOLD, 36);
-        list = ImageUtil.split2lines(price, 750, font);
-        for (int i = 0; i < list.size(); i++) {
-            bufferedImage = ImageUtil.drawStringGrapics(list.get(i).getLineText(), 1.0f, bufferedImage, "PingFang SC",
-                    36, Font.BOLD, new Color(255, 174, 40), 750 - 2 * padding - list.get(i).getWidth() + 18, 116 + (i + 1) * 36);
-        }
-
-        //商品名称（需要换行）
-        String name = "自从《新个税法》实施以后，谁更受2益就成为4全民焦点。起征点多少合适？谁将受益？谁被“多征税”？税改是“劫富济贫”？我们梳理了近40年更使身处各用一般工薪阶层，土豪请绕行）";
-        font = ImageUtil.customizeFont(fontsPath,Font.BOLD, 24);
-        list = ImageUtil.split2lines(name, 530, font);
-        for (int i = 0; i < list.size(); i++) {
-            logger.info(list.get(i).getLineText());
-            logger.info("width:" + list.get(i).getWidth());
-            bufferedImage = ImageUtil.drawStringGrapics(list.get(i).getLineText(), 1.0f, bufferedImage, "PingFang SC", 24, Font.BOLD, new Color(155, 155, 155), padding, 220 + (i + 1) * 24 + i * 12);
-        }
-
-        //二维码
-        BufferedImage qcodeImg = QrcodeUtil.generatorQrCode("https://tokencn-kol.liaoyantech.cn/community-app/MAT/mall/googs-details?code=MAT&id=21&isdistribution=&wid=7", 150, 150);
-        bufferedImage = ImageUtil.watermark(bufferedImage, qcodeImg, 750 - 2 * padding - 110, 210, 1.0f);
-
-        bufferedImage = drawPic(bufferedImage, "https://img.liaoyantech.cn/FrORS2WzPcOU6KDhWhv16_umdglF", 690, 0, padding, 420);
-
-        File outputfile = new File("/Users/leon/pic/test.png");
-        ImageIO.write(bufferedImage, "png", outputfile);
-
-    }
-}
-```
