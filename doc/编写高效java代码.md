@@ -214,7 +214,7 @@ public class StrategyFactory implements InitializingBean {
     ...
 ```
 
-2.对象&类
+**2.对象&类**
 
 2.1.禁止使用JSON转化对象
 
@@ -341,7 +341,7 @@ public final class DateHelper {
 
 注意：使用Spring的AOP特性时，需要对Bean进行动态代理，如果Bean类添加了final修饰，会导致异常。
 
-3.方法
+**3.方法**
 
 3.1.把跟类成员变量无关的方法声明成静态方法
 
@@ -541,7 +541,7 @@ public class Rectangle {
 
 **注意：使用Spring的AOP特性时，需要对Bean进行动态代理，如果方法添加了final修饰，将不会被代理。**
 
-4.表达式
+**4.表达式**
 
 4.1.尽量减少方法的重复调用
 
@@ -675,7 +675,7 @@ switch (i) {
 
 备注：如果业务复杂，可以采用Map实现策略模式。
 
-5.字符串
+**5.字符串**
 
 5.1.尽量不要使用正则表达式匹配
 
@@ -755,7 +755,7 @@ int i = 12345;
 String s = String.valueOf(i);
 ```
 
-6.数组
+**6.数组**
 
 6.1.不要使用循环拷贝数组，尽量使用System.arraycopy拷贝数组
 
@@ -811,7 +811,7 @@ List<Object> objectList = Arrays.asList(1, "2", 3, "4", 5, ...);
 Object[] objects = objectList.toArray();
 ```
 
-7.集合
+**7.集合**
 
 7.1.初始化集合时，尽量指定集合大小
 
@@ -1030,7 +1030,7 @@ public static UserVO transUser(UserDO user, Map<Long, RoleDO> roleMap) {
 }
 ```
 
-8.异常
+**8.异常**
 
 8.1.直接捕获对应的异常
 
@@ -1119,7 +1119,7 @@ public static boolean isValid(UserDO user) {
 }
 ```
 
-9.缓冲区
+**9.缓冲区**
 
 9.1.初始化时尽量指定缓冲区大小
 
@@ -1257,7 +1257,7 @@ try (BufferedInputStream input = new BufferedInputStream(new FileInputStream("a"
 
 其中，可以根据实际情况手动指定缓冲流的大小，把缓冲流的缓冲作用发挥到最大。
 
-10.线程
+**10.线程**
 
 10.1.在单线程中，尽量使用非线程安全类
 
