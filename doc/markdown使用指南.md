@@ -71,7 +71,7 @@ n个...
 
 语法：
 
-![标题](https://img.mvpcs.cn/ODg=/image/Article/MTU3MjkzNTIyNzU5MC05NTIzNTI=?imageView2/0/w/100/h/100 "标题标题")
+![标题](https://img.mvpcs.cn/ODg=/image/Article/MTU3MjkzNTIyNzU5MC05NTIzNTI=?imageView2/0/w/100/h/100 "标题alt")
 
 图片alt就是显示在图片下面的文字，相当于对图片内容的解释。
 
