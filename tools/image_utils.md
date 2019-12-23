@@ -60,15 +60,6 @@ import java.util.Base64.Decoder;
 import java.util.Base64.Encoder;
 import java.util.List;
 
-
-/**
- * @author Hunk Zhu
- * @package io.merculet.market.utils
- * @class ImageUtil
- * @email rui.zhu@magicwindow.cn
- * @date 2018/10/19 11:29
- * @description
- */
 @Slf4j
 public class ImageUtil {
 
@@ -1328,7 +1319,7 @@ public class ImageUtil {
      */
     public static void main(String[] args) throws Exception {
         //将这个图片拷贝到你项目根目录下
-//        String imageUrl = "https://img.liaoyantech.cn/FrOHrcTcyVq_qUiPpRvz3Jdzpsgj";
+//        String imageUrl = "https://img.xxx.cn/FrOHrcTcyVq_qUiPpRvz3Jdzpsgj";
 //        BufferedImage bufferedImage = ImageIO.read(new URL(imageUrl));
 //        int width = bufferedImage.getWidth();
 //        int height = bufferedImage.getHeight();
