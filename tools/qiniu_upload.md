@@ -25,14 +25,6 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.UUID;
 
-/**
- * @author sanlin shi
- * @package cn.merculet.star.util
- * @class QiniuUtil
- * @email sanlin.shi@magicwindow.cn
- * @date 2019/03/06 14:11
- * @description
- */
 @Component
 @Slf4j
 public class QiniuUtil {
@@ -50,7 +42,7 @@ public class QiniuUtil {
     private String domain;
 
     //上传文件夹
-    private static final String prefix = "distribute/productPoster/";
+    private static final String prefix = "distribute/poster/";
 
     //刷新接口
     private static final String REFRESH = "http://fusion.qiniuapi.com/v2/tune/refresh";

@@ -33,13 +33,12 @@ public class TextLine {
 2.创建图片基础工具类 ImageUtil.java
 
 import cn.magicwindow.score.common.bean.TextLine;
+import cn.magicwindow.score.common.constants.FontConstants;
 import lombok.extern.slf4j.Slf4j;
 import net.coobird.thumbnailator.Thumbnails;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import sun.font.FontDesignMetrics;
-import sun.misc.BASE64Decoder;
-import sun.misc.BASE64Encoder;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -50,25 +49,36 @@ import java.awt.geom.RoundRectangle2D;
 import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
 import java.awt.image.PixelGrabber;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.math.BigDecimal;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Base64.Decoder;
+import java.util.Base64.Encoder;
 import java.util.List;
 
 
+/**
+ * @author Hunk Zhu
+ * @package io.merculet.market.utils
+ * @class ImageUtil
+ * @email rui.zhu@magicwindow.cn
+ * @date 2018/10/19 11:29
+ * @description
+ */
 @Slf4j
 public class ImageUtil {
 
     public static final String IMAGE_PREFIX = "data:image/png;base64,";
+
+    public static String EMOJI_PREFIX = "https://img.merculet.cn/emoji/0";
+    public static String EMOJI_SUFFIX = ".png";
+
+    public static String SIGN_IN_PREFIX = "https://img.merculet.cn/sign/icon/";
+    public static String SIGN_IN_SUFFIX = ".png";
 
     public static BufferedImage watermark(BufferedImage source, String overUrl, int x, int y, float alpha,
                                           int waterWidth, int waterHeight) {
@@ -313,6 +323,7 @@ public class ImageUtil {
      */
     public static BufferedImage loadAndZoomPic(String imageUrl, int width, int height) {
         try {
+            imageUrl = imageUrl.replace("liaoyantech","merculet");
             BufferedImage src = ImageIO.read(new URL(imageUrl));
             //获取图片原始宽和高
             int srcWidth = src.getWidth();
@@ -383,7 +394,12 @@ public class ImageUtil {
      */
     public static int getSingleWordWidth(Font font, char word) {
         FontDesignMetrics metrics = FontDesignMetrics.getMetrics(font);
-        return metrics.charWidth(word);
+        int charWidth = metrics.charWidth(word);
+        //判断是不是emoji
+        if (EmojiUtils.isEmoji(String.valueOf(word))) {
+            charWidth = charWidth / 2;
+        }
+        return charWidth;
     }
 
     /**
@@ -398,8 +414,8 @@ public class ImageUtil {
      * @param endY     y坐标
      * @return
      */
-    public static BufferedImage drawTextGraphics(String lineText, float alpha,
-                                                 BufferedImage buffImg, Font font, Color color, int startX, int endY) {
+    public static BufferedImage drawTextGraphicsBase(String lineText, float alpha,
+                                                     BufferedImage buffImg, Font font, Color color, int startX, int endY) {
         // 创建Graphics2D对象，用在底图对象上绘图
         Graphics2D g2d = buffImg.createGraphics();
         // 在图形和图像中实现混合和透明效果
@@ -416,6 +432,53 @@ public class ImageUtil {
         g2d.dispose();
         return buffImg;
     }
+
+    /**
+     * 处理emoji
+     *
+     * @param lineText
+     * @param bufferedImage
+     * @param font
+     * @param startX
+     * @param endY
+     * @return
+     */
+    public static BufferedImage drawTextGraphics(String lineText, float alpha,
+                                                 BufferedImage bufferedImage, Font font, Color color, int startX, int endY) {
+        lineText = EmojiUtils.toUnicode(lineText);  // emoji4j.EmojiUtils.hexHtmlify();
+        int fontSize = font.getSize();
+        int len = lineText.length();
+        int adIndex = 1;
+        String charStr = "";
+        for (int i = 0; i < len; i++) {
+            char codePoint = lineText.charAt(i);
+            if (EmojiUtils.isEmoji(String.valueOf(codePoint))) {
+                if (adIndex % 2 == 0) {
+                    String imageUrl = null;
+                    try {
+                        String s = emoji4j.EmojiUtils.hexHtmlify(lineText.substring(i - 1, i + 1));
+                        imageUrl = EMOJI_PREFIX + s.substring(2, s.length() - 1) + EMOJI_SUFFIX;
+                        bufferedImage = ImageUtil.drawPic(bufferedImage, imageUrl, fontSize, fontSize, startX, endY - fontSize);
+                    } catch (Exception e) {
+                        log.info(imageUrl + "不存在");
+                    }
+                    startX += fontSize;
+                    charStr = "";
+                    adIndex = 1;
+                } else {
+                    charStr = charStr + codePoint;
+                    adIndex++;
+                }
+            } else {
+                bufferedImage = drawTextGraphicsBase(String.valueOf(lineText.charAt(i)), alpha, bufferedImage, font, color, startX, endY);
+                int singleWordWidth = getSingleWordWidth(font, lineText.charAt(i));
+                startX += singleWordWidth;
+            }
+        }
+
+        return bufferedImage;
+    }
+
 
     /**
      * 内容换行
@@ -564,6 +627,45 @@ public class ImageUtil {
     }
 
     /**
+     * 绘制圆角矩形
+     *
+     * @param buffImg
+     * @param borderColor
+     * @param startX
+     * @param starY
+     * @param width
+     * @param height
+     * @param arcWidth
+     * @param arcHeight
+     * @param borderHeight
+     * @return
+     */
+    public static BufferedImage drawArcRectangleGraphics(BufferedImage buffImg, Color borderColor, Color bgColor, int startX, int starY, int width, int height, int arcWidth, int arcHeight, float borderHeight) {
+        Graphics2D g2d = buffImg.createGraphics();
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setColor(borderColor);
+
+        // 2. 填充一个矩形
+//        g2d.fillRect(startX, starY, width, height);
+
+        // 3. 绘制一个圆角矩形: 起点(30, 150), 宽80, 高100, 圆角宽30, 圆角高30
+        g2d.drawRoundRect(startX, starY, width, height, arcWidth, arcHeight);
+        if (Preconditions.isNotBlank(borderHeight) && borderHeight > 0f) {
+            g2d.setStroke(new BasicStroke(borderHeight));
+        }
+
+        if (Preconditions.isNotBlank(bgColor)) {
+            g2d.setColor(bgColor);
+            g2d.fillRoundRect(startX, starY, width, height, arcWidth, arcHeight);
+        }
+
+        g2d.dispose();
+
+        return buffImg;
+    }
+
+
+    /**
      * 设置渐变色
      *
      * @param buffImg
@@ -587,6 +689,33 @@ public class ImageUtil {
         return buffImg;
     }
 
+    /**
+     * 渐变色新版本(以后请使用过此版本)
+     *
+     * @param buffImg
+     * @param starBackground
+     * @param endBackground
+     * @param startX
+     * @param starY
+     * @param width
+     * @param height
+     * @param endX
+     * @param endY
+     * @param cyclic
+     * @return
+     */
+    public static BufferedImage paintGradientPaint2(BufferedImage buffImg, Color starBackground, Color endBackground, int startX, int starY, int width, int height, int endX, int endY, boolean cyclic) {
+        Graphics2D g2d = buffImg.createGraphics();
+        Rectangle2D.Float rect = new Rectangle2D.Float(startX, starY, width, height);// 创建矩形对象
+        // 创建循环渐变的GraphientPaint对象
+        GradientPaint paint = new GradientPaint(startX, starY, starBackground, endX, endY, endBackground, cyclic);
+        g2d.setPaint(paint);// 设置渐变
+        g2d.fillRect(startX, starY, width, height);
+        g2d.fill(rect);// 绘制矩形
+        g2d.dispose();
+        return buffImg;
+    }
+
 
     /**
      * 绘制圆形头像
@@ -601,6 +730,8 @@ public class ImageUtil {
      * @throws IOException
      */
     public static BufferedImage drawHeader(BufferedImage buffImg, String imageUrl, int startX, int starY, int targetWidth, int targetHeight) throws IOException {
+
+        imageUrl = imageUrl.replace("liaoyantech", "merculet");
         URL url = new URL(imageUrl);
         BufferedImage srcImage = ImageIO.read(url);
         return drawHeader(buffImg, srcImage, startX, starY, targetWidth, targetHeight);
@@ -750,6 +881,7 @@ public class ImageUtil {
      * @throws Exception
      */
     public static BufferedImage drawPic(BufferedImage bufferedImage, String imageUrl, int width, int height, int x, int y) throws Exception {
+        imageUrl = imageUrl.replace("liaoyantech", "merculet");
         BufferedImage src = ImageIO.read(new URL(imageUrl));
         int srcWidth = src.getWidth();
         int srcHeight = src.getHeight();
@@ -765,7 +897,7 @@ public class ImageUtil {
     }
 
     /**
-     * @param bufferedImage 画布
+     * @param bufferedImage       画布
      * @param targetBufferedImage 绘制的图片
      * @param width
      * @param height
@@ -809,9 +941,9 @@ public class ImageUtil {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        BASE64Encoder encoder = new BASE64Encoder();
+        Encoder encoder = Base64.getEncoder();
         //转换成base64串
-        String base64 = encoder.encodeBuffer(compressBytes).trim();
+        String base64 = encoder.encodeToString(compressBytes).trim();
         //删除 \r\n
         base64 = base64.replaceAll("\n", "").replaceAll("\r", "");
         return base64;
@@ -830,9 +962,10 @@ public class ImageUtil {
             //图像数据为空
             return null;
         }
-        BASE64Decoder decoder = new BASE64Decoder();
+        Decoder decoder = Base64.getDecoder();
+
         try {
-            byte[] bytes = decoder.decodeBuffer(base64String);
+            byte[] bytes = decoder.decode(base64String);
             ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
             BufferedImage bi = ImageIO.read(bais);
             return bi;
@@ -1056,13 +1189,13 @@ public class ImageUtil {
             BufferedImage output = Thumbnails.of(src).size(src.getWidth(), src.getHeight()).asBufferedImage();
             String base64 = bufferImage2Base64(output);
             int i = base64.length() - base64.length() / 8 * 2;
-            while (i > 30720) {
-                log.info("文件大小：" + i);
+            int count = 0;
+            while (count <= 10 && i > 30720) {
                 output = Thumbnails.of(output).scale(30720f / i).asBufferedImage();
                 base64 = bufferImage2Base64(output);
                 i = base64.length() - base64.length() / 8 * 2;
+                count++;
             }
-            log.info("last文件大小：" + i);
             return output;
         } catch (Exception e) {
             return null;
@@ -1195,19 +1328,39 @@ public class ImageUtil {
      */
     public static void main(String[] args) throws Exception {
         //将这个图片拷贝到你项目根目录下
-        String imageUrl = "https://img.liaoyantech.cn/FrOHrcTcyVq_qUiPpRvz3Jdzpsgj";
-        BufferedImage bufferedImage = ImageIO.read(new URL(imageUrl));
-        int width = bufferedImage.getWidth();
-        int height = bufferedImage.getHeight();
-        bufferedImage = ImageUtil.cropImage(bufferedImage, width / 2 - 200, height / 2 - 200, width / 2 + 200, height / 2 + 200);
+//        String imageUrl = "https://img.liaoyantech.cn/FrOHrcTcyVq_qUiPpRvz3Jdzpsgj";
+//        BufferedImage bufferedImage = ImageIO.read(new URL(imageUrl));
+//        int width = bufferedImage.getWidth();
+//        int height = bufferedImage.getHeight();
+
+//        int startx = 0;
+//        int startY = 0;
+//        int endx = 0;
+//        int endY = 0;
+//        if (width > height) {
+//            startx = width / 2 - height / 2;
+//            startY = height / 2 - height / 2;
+//            endx = width / 2 + height / 2;
+//            endY = height / 2 + height / 2;
+//        } else {
+//            startx = width / 2 - width / 2;
+//            startY = height / 2 - width / 2;
+//            endx = width / 2 + width / 2;
+//            endY = height / 2 + width / 2;
+//        }
+
+//        bufferedImage = ImageUtil.cropImage(bufferedImage, startx, startY, endx, endY);
+        BufferedImage bufferedImage = ImageUtil.drawBackground(750, 750, Color.WHITE);
+//        ImageUtil.paintGradientPaint2(bufferedImage, new Color(255, 255, 255, 0), new Color(255, 255, 255), 0, 100, 750, 204, 0, 300, false);
+        String buttonStr = "评论😊😊dsdadsdsdasdasdssdwdwqdqd&%#@$😊@^@!#!(*$#@!";
+//        bufferedImage = handleEmoji(buttonStr, bufferedImage, new Font(FontConstants.DIN_ALTERNATE_BOLD, Font.BOLD, 23), 30, 30);
+        bufferedImage = drawTextGraphics(buttonStr, 1, bufferedImage, new Font(FontConstants.DIN_ALTERNATE_BOLD, Font.BOLD, 23), Color.black, 30, 30);
+
         File outputfile = new File("/Users/leon/pic/test.png");
         ImageIO.write(bufferedImage, "png", outputfile);
     }
 
-}
-
-  
-  
+}  
 ```
 
 
