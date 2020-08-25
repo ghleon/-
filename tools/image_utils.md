@@ -33,7 +33,6 @@ public class TextLine {
 2.创建图片基础工具类 ImageUtil.java
 
 import cn.magicwindow.score.common.bean.TextLine;
-import cn.magicwindow.score.common.constants.FontConstants;
 import lombok.extern.slf4j.Slf4j;
 import net.coobird.thumbnailator.Thumbnails;
 import org.springframework.core.io.ClassPathResource;
@@ -41,15 +40,30 @@ import org.springframework.core.io.Resource;
 import sun.font.FontDesignMetrics;
 
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
 import java.awt.*;
+import java.awt.color.ColorSpace;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
+import java.awt.image.ComponentColorModel;
+import java.awt.image.DataBuffer;
+import java.awt.image.DataBufferByte;
 import java.awt.image.PixelGrabber;
-import java.io.*;
+import java.awt.image.Raster;
+import java.awt.image.WritableRaster;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -58,8 +72,18 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Base64.Decoder;
 import java.util.Base64.Encoder;
+import java.util.Iterator;
 import java.util.List;
 
+
+/**
+ * @author Hunk Zhu
+ * @package io.merculet.market.utils
+ * @class ImageUtil
+ * @email rui.zhu@magicwindow.cn
+ * @date 2018/10/19 11:29
+ * @description
+ */
 @Slf4j
 public class ImageUtil {
 
@@ -68,24 +92,105 @@ public class ImageUtil {
     public static String EMOJI_PREFIX = "https://img.merculet.cn/emoji/0";
     public static String EMOJI_SUFFIX = ".png";
 
+    public static String POSTER_PREFIX = "https://img.merculet.cn/poster/";
+
     public static String SIGN_IN_PREFIX = "https://img.merculet.cn/sign/icon/";
     public static String SIGN_IN_SUFFIX = ".png";
 
     public static BufferedImage watermark(BufferedImage source, String overUrl, int x, int y, float alpha,
+
                                           int waterWidth, int waterHeight) {
+        BufferedImage buffImg = null;
         try {
             // 获取底图
-            BufferedImage buffImg = ImageIO.read(new URL(overUrl));
-            // 圆角处理
-            buffImg = makeRoundedCorner(buffImg, 600);
-
-            drawImageGraphics(buffImg, x, y, alpha, source, waterWidth, waterHeight);
+            buffImg = ImageIO.read(new URL(overUrl));
         } catch (Exception e) {
-            log.error(e.getMessage(), e);
+            buffImg = handleUnsupportedImage(e, overUrl);
         }
+        // 圆角处理
+        buffImg = makeRoundedCorner(buffImg, 600);
+        drawImageGraphics(buffImg, x, y, alpha, source, waterWidth, waterHeight);
+
         return source;
 
     }
+
+    private static BufferedImage handleUnsupportedImage(Exception e, String fileUrl) {
+
+        try {
+            if ("Unsupported Image Type".equals(e.getMessage())) {
+                // Find a suitable ImageReader
+                ImageInputStream input = ImageIO.createImageInputStream(url2InputStream(fileUrl));
+                Iterator readers = ImageIO.getImageReaders(input);
+                ImageReader reader = (ImageReader) readers.next();
+                reader.setInput(input);
+                String format = reader.getFormatName();
+                if ("JPEG".equalsIgnoreCase(format) || "JPG".equalsIgnoreCase(format)) {
+                    Raster raster = reader.readRaster(0, null);//CMYK
+                    // Stream the image file (the original CMYK image)
+                    int w = raster.getWidth();
+                    int h = raster.getHeight();
+                    byte[] rgb = new byte[w * h * 3];
+                    //彩色空间转换
+                    float[] Y = raster.getSamples(0, 0, w, h, 0, (float[]) null);
+                    float[] Cb = raster.getSamples(0, 0, w, h, 1, (float[]) null);
+                    float[] Cr = raster.getSamples(0, 0, w, h, 2, (float[]) null);
+                    float[] K = raster.getSamples(0, 0, w, h, 3, (float[]) null);
+                    for (int i = 0, imax = Y.length, base = 0; i < imax; i++, base += 3) {
+                        float k = 220 - K[i], y = 255 - Y[i], cb = 255 - Cb[i],
+                                cr = 255 - Cr[i];
+
+                        double val = y + 1.402 * (cr - 128) - k;
+                        val = (val - 128) * .65f + 128;
+                        rgb[base] = val < 0.0 ? (byte) 0 : val > 255.0 ? (byte) 0xff
+                                : (byte) (val + 0.5);
+
+                        val = y - 0.34414 * (cb - 128) - 0.71414 * (cr - 128) - k;
+                        val = (val - 128) * .65f + 128;
+                        rgb[base + 1] = val < 0.0 ? (byte) 0 : val > 255.0 ? (byte) 0xff
+                                : (byte) (val + 0.5);
+
+                        val = y + 1.772 * (cb - 128) - k;
+                        val = (val - 128) * .65f + 128;
+                        rgb[base + 2] = val < 0.0 ? (byte) 0 : val > 255.0 ? (byte) 0xff
+                                : (byte) (val + 0.5);
+                    }
+                    raster = Raster.createInterleavedRaster(new DataBufferByte(rgb, rgb.length), w, h, w * 3, 3, new int[]{0, 1, 2}, null);
+                    ColorSpace cs = ColorSpace.getInstance(ColorSpace.CS_sRGB);
+                    ColorModel cm = new ComponentColorModel(cs, false, true, Transparency.OPAQUE, DataBuffer.TYPE_BYTE);
+                    return new BufferedImage(cm, (WritableRaster) raster, true, null);
+                }
+
+            } else {
+                e.printStackTrace();
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+
+        return null;
+    }
+
+
+    /**
+     * url 转 InputStream
+     *
+     * @param fileUrl
+     * @return
+     * @throws IOException
+     */
+    public static InputStream url2InputStream(String fileUrl) throws IOException {
+        URL url = new URL(fileUrl);
+        URLConnection conn = url.openConnection();
+        conn.setConnectTimeout(30 * 1000);  // 连接超时:30s
+        conn.setReadTimeout(1 * 1000 * 1000); // IO超时:1min
+        conn.connect();
+
+        // 创建输入流读取文件
+        InputStream in = conn.getInputStream();
+        return in;
+    }
+
 
     private static void drawImageGraphics(BufferedImage waterImg, int x, int y, float alpha, BufferedImage buffImg,
                                           int waterWidth, int waterHeight) {
@@ -257,8 +362,11 @@ public class ImageUtil {
 
         ByteArrayOutputStream bOut = new ByteArrayOutputStream();
         ImageIO.write(tag, "PNG", bOut);
-
-        return bOut.toByteArray();
+        byte[] bytes = bOut.toByteArray();
+        if (Preconditions.isNotBlank(bOut)) {
+            bOut.close();
+        }
+        return bytes;
     }
 
     /**
@@ -285,10 +393,20 @@ public class ImageUtil {
         g.drawImage(image, 0, 0, null);
         g.dispose();
 
-        ByteArrayOutputStream bOut = new ByteArrayOutputStream();
-        ImageIO.write(tag, imageType, bOut);
+        try {
+            ByteArrayOutputStream bOut = new ByteArrayOutputStream();
+            ImageIO.write(tag, imageType, bOut);
+            byte[] bytes = bOut.toByteArray();
+            //关闭流
+            if (Preconditions.isNotBlank(bOut)) {
+                bOut.close();
+            }
+            return bytes;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
-        return bOut.toByteArray();
+        return null;
     }
 
     public static byte[] zoomPictures(BufferedImage bufferedImage) throws IOException {
@@ -313,25 +431,30 @@ public class ImageUtil {
      * @return
      */
     public static BufferedImage loadAndZoomPic(String imageUrl, int width, int height) {
+        BufferedImage src = null;
+        imageUrl = imageUrl.replace("liaoyantech", "merculet");
         try {
-            imageUrl = imageUrl.replace("liaoyantech","merculet");
-            BufferedImage src = ImageIO.read(new URL(imageUrl));
+            src = ImageIO.read(new URL(imageUrl));
+        } catch (Exception e) {
+            src = handleUnsupportedImage(e, imageUrl);
+        }
+
+        try {
             //获取图片原始宽和高
             int srcWidth = src.getWidth();
             int srcHeight = src.getHeight();
-
             if (width == 0 && height > 0) {
                 width = (int) (srcWidth * 1.0 * height / srcHeight);
             } else if (width > 0 && height == 0) {
                 height = (int) (srcHeight * 1.0 * width / srcWidth);
             }
             return zoomImage(src, width, height);
-        } catch (IOException e) {
-            e.printStackTrace();
         } catch (Exception e) {
             e.printStackTrace();
         }
+
         return null;
+
     }
 
     /**
@@ -482,7 +605,7 @@ public class ImageUtil {
     public static List<TextLine> split2lines(String text, int width, Font font) {
         List<TextLine> rows = new ArrayList<>();
 
-        text = text.replaceAll("\\n", "\n").trim();
+        text = text.replaceAll("\\n", "\n");
 
         int currentWidth = 0;
         int start = 0;
@@ -520,7 +643,8 @@ public class ImageUtil {
      * @return
      * @throws IOException
      */
-    public static BufferedImage watermark(BufferedImage source, BufferedImage over, int x, int y, float alpha) throws IOException {
+    public static BufferedImage watermark(BufferedImage source, BufferedImage over, int x, int y, float alpha) throws
+            IOException {
         drawImageGraphics(over, x, y, alpha, source);
         return source;
     }
@@ -593,7 +717,8 @@ public class ImageUtil {
      * @param alpha       透明度
      * @return
      */
-    public static BufferedImage drawRectangleGraphics(BufferedImage buffImg, Color borderColor, Color background, int startX, int starY, int width, int height, float alpha, float borderHeight) {
+    public static BufferedImage drawRectangleGraphics(BufferedImage buffImg, Color borderColor, Color background,
+                                                      int startX, int starY, int width, int height, float alpha, float borderHeight) {
         Graphics2D g2d = buffImg.createGraphics();
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2d.setColor(borderColor);
@@ -631,7 +756,8 @@ public class ImageUtil {
      * @param borderHeight
      * @return
      */
-    public static BufferedImage drawArcRectangleGraphics(BufferedImage buffImg, Color borderColor, Color bgColor, int startX, int starY, int width, int height, int arcWidth, int arcHeight, float borderHeight) {
+    public static BufferedImage drawArcRectangleGraphics(BufferedImage buffImg, Color borderColor, Color bgColor,
+                                                         int startX, int starY, int width, int height, int arcWidth, int arcHeight, float borderHeight) {
         Graphics2D g2d = buffImg.createGraphics();
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2d.setColor(borderColor);
@@ -668,7 +794,8 @@ public class ImageUtil {
      * @param height
      * @return
      */
-    public static BufferedImage paintGradientPaint(BufferedImage buffImg, Color starBackground, Color endBackground, int startX, int starY, int width, int height) {
+    public static BufferedImage paintGradientPaint(BufferedImage buffImg, Color starBackground, Color endBackground,
+                                                   int startX, int starY, int width, int height) {
         Graphics2D g2d = buffImg.createGraphics();
         Rectangle2D.Float rect = new Rectangle2D.Float(startX, starY, width, height);// 创建矩形对象
         // 创建循环渐变的GraphientPaint对象
@@ -695,7 +822,8 @@ public class ImageUtil {
      * @param cyclic
      * @return
      */
-    public static BufferedImage paintGradientPaint2(BufferedImage buffImg, Color starBackground, Color endBackground, int startX, int starY, int width, int height, int endX, int endY, boolean cyclic) {
+    public static BufferedImage paintGradientPaint2(BufferedImage buffImg, Color starBackground, Color
+            endBackground, int startX, int starY, int width, int height, int endX, int endY, boolean cyclic) {
         Graphics2D g2d = buffImg.createGraphics();
         Rectangle2D.Float rect = new Rectangle2D.Float(startX, starY, width, height);// 创建矩形对象
         // 创建循环渐变的GraphientPaint对象
@@ -720,11 +848,18 @@ public class ImageUtil {
      * @return
      * @throws IOException
      */
-    public static BufferedImage drawHeader(BufferedImage buffImg, String imageUrl, int startX, int starY, int targetWidth, int targetHeight) throws IOException {
+    public static BufferedImage drawHeader(BufferedImage buffImg, String imageUrl, int startX, int starY,
+                                           int targetWidth, int targetHeight) throws IOException {
 
         imageUrl = imageUrl.replace("liaoyantech", "merculet");
+        BufferedImage srcImage = null;
         URL url = new URL(imageUrl);
-        BufferedImage srcImage = ImageIO.read(url);
+        try {
+            srcImage = ImageIO.read(url);
+        } catch (Exception e) {
+            srcImage = handleUnsupportedImage(e, imageUrl);
+        }
+
         return drawHeader(buffImg, srcImage, startX, starY, targetWidth, targetHeight);
     }
 
@@ -738,7 +873,8 @@ public class ImageUtil {
      * @return
      * @throws IOException
      */
-    public static BufferedImage drawHeader(BufferedImage buffImg, BufferedImage srcImage, int startX, int starY, int targetWidth, int targetHeight) throws IOException {
+    public static BufferedImage drawHeader(BufferedImage buffImg, BufferedImage srcImage, int startX, int starY,
+                                           int targetWidth, int targetHeight) throws IOException {
         Graphics2D g2 = buffImg.createGraphics();
         TexturePaint texturePaint = new TexturePaint(srcImage, new Rectangle2D.Float(startX, starY, targetWidth, targetHeight));
         g2.setPaint(texturePaint);
@@ -760,7 +896,8 @@ public class ImageUtil {
      * @param targetWidth  宽
      * @param targetHeight 高
      */
-    public static BufferedImage drawArc(BufferedImage buffImg, Color borderColor, int startX, int starY, int targetWidth, int targetHeight, Color fillColor) {
+    public static BufferedImage drawArc(BufferedImage buffImg, Color borderColor, int startX, int starY,
+                                        int targetWidth, int targetHeight, Color fillColor) {
         Graphics2D g2d = buffImg.createGraphics();
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2d.setColor(borderColor);
@@ -789,7 +926,8 @@ public class ImageUtil {
      * @param isLine       是否是实线
      * @return
      */
-    public static BufferedImage drawLine(BufferedImage buffImg, Color borderColor, int startX, int startY, int endX, int endY, float targetHeight, boolean isLine) {
+    public static BufferedImage drawLine(BufferedImage buffImg, Color borderColor, int startX, int startY, int endX,
+                                         int endY, float targetHeight, boolean isLine) {
         // 创建 Graphics 的副本, 需要改变 Graphics 的参数,
         // 这里必须使用副本, 避免影响到 Graphics 原有的设置
         Graphics2D g2d = buffImg.createGraphics();
@@ -871,9 +1009,16 @@ public class ImageUtil {
      * @return
      * @throws Exception
      */
-    public static BufferedImage drawPic(BufferedImage bufferedImage, String imageUrl, int width, int height, int x, int y) throws Exception {
+    public static BufferedImage drawPic(BufferedImage bufferedImage, String imageUrl, int width, int height, int x,
+                                        int y) throws Exception {
         imageUrl = imageUrl.replace("liaoyantech", "merculet");
-        BufferedImage src = ImageIO.read(new URL(imageUrl));
+        BufferedImage src = null;
+        try {
+            src = ImageIO.read(new URL(imageUrl));
+        } catch (Exception e) {
+            src = handleUnsupportedImage(e, imageUrl);
+        }
+
         int srcWidth = src.getWidth();
         int srcHeight = src.getHeight();
 
@@ -897,7 +1042,8 @@ public class ImageUtil {
      * @return
      * @throws Exception
      */
-    public static BufferedImage drawPic(BufferedImage bufferedImage, BufferedImage targetBufferedImage, int width, int height, int x, int y) throws Exception {
+    public static BufferedImage drawPic(BufferedImage bufferedImage, BufferedImage targetBufferedImage, int width,
+                                        int height, int x, int y) throws Exception {
 
         int srcHeight = targetBufferedImage.getHeight();
         int srcWidth = targetBufferedImage.getWidth();
@@ -959,6 +1105,9 @@ public class ImageUtil {
             byte[] bytes = decoder.decode(base64String);
             ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
             BufferedImage bi = ImageIO.read(bais);
+            if (Preconditions.isNotBlank(bais)) {
+                bais.close();
+            }
             return bi;
         } catch (Exception e) {
             e.printStackTrace();
@@ -1243,6 +1392,9 @@ public class ImageUtil {
             ByteArrayInputStream in = new ByteArrayInputStream(b);
             //将in作为输入流，读取图片存入image中，而这里in可以为ByteArrayInputStream();
             BufferedImage image = ImageIO.read(in);
+            if (Preconditions.isNotBlank(in)) {
+                in.close();
+            }
             return image;
         } catch (Exception e) {
             log.info(e.getMessage());
@@ -1295,6 +1447,9 @@ public class ImageUtil {
             InputStream inStream = conn.getInputStream();
             //得到图片的二进制数据
             byte[] btImg = readInputStream(inStream);
+            if (Preconditions.isNotBlank(inStream)) {
+                inStream.close();
+            }
             return btImg;
         } catch (Exception e) {
             e.printStackTrace();
@@ -1318,40 +1473,14 @@ public class ImageUtil {
      * @throws IOException
      */
     public static void main(String[] args) throws Exception {
-        //将这个图片拷贝到你项目根目录下
-//        String imageUrl = "https://img.xxx.cn/FrOHrcTcyVq_qUiPpRvz3Jdzpsgj";
-//        BufferedImage bufferedImage = ImageIO.read(new URL(imageUrl));
-//        int width = bufferedImage.getWidth();
-//        int height = bufferedImage.getHeight();
-
-//        int startx = 0;
-//        int startY = 0;
-//        int endx = 0;
-//        int endY = 0;
-//        if (width > height) {
-//            startx = width / 2 - height / 2;
-//            startY = height / 2 - height / 2;
-//            endx = width / 2 + height / 2;
-//            endY = height / 2 + height / 2;
-//        } else {
-//            startx = width / 2 - width / 2;
-//            startY = height / 2 - width / 2;
-//            endx = width / 2 + width / 2;
-//            endY = height / 2 + width / 2;
-//        }
-
-//        bufferedImage = ImageUtil.cropImage(bufferedImage, startx, startY, endx, endY);
-        BufferedImage bufferedImage = ImageUtil.drawBackground(750, 750, Color.WHITE);
-//        ImageUtil.paintGradientPaint2(bufferedImage, new Color(255, 255, 255, 0), new Color(255, 255, 255), 0, 100, 750, 204, 0, 300, false);
-        String buttonStr = "评论😊😊dsdadsdsdasdasdssdwdwqdqd&%#@$😊@^@!#!(*$#@!";
-//        bufferedImage = handleEmoji(buttonStr, bufferedImage, new Font(FontConstants.DIN_ALTERNATE_BOLD, Font.BOLD, 23), 30, 30);
-        bufferedImage = drawTextGraphics(buttonStr, 1, bufferedImage, new Font(FontConstants.DIN_ALTERNATE_BOLD, Font.BOLD, 23), Color.black, 30, 30);
+     
+        BufferedImage bufferedImage = handleUnsupportedImage(new Exception(), "https://img.mvpcs.cn/FoGCXzXyMMA0ewaHTWDGt83Lz86-");
 
         File outputfile = new File("/Users/leon/pic/test.png");
         ImageIO.write(bufferedImage, "png", outputfile);
     }
 
-}  
+}
 ```
 
 
