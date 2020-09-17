@@ -88,6 +88,21 @@ method:GET
 ```
 
 
+* 获取话题标签列表 (分页)
+
+```
+服务:community
+method:GET
+/api/v1/score/community/moments/tags/page?uat_short_name=xxx&page_number=1&page_size=10
+```
+
+* 获取话题标签列表 (分页)
+
+```
+服务:community
+method:GET
+/api/v1/score/community/moments/tags/moments/page?uat_short_name=xxx&page_number=1&page_size=10&tags_id=xxxx
+```
 
 
 
