@@ -106,7 +106,7 @@ method:GET
 ```
 服务:community
 method:GET
-/api/v1/score/community/moments/tags/summary?uat_short_name=xxx&tags_id=xxxx
+/api/v1/score/community/moments/tags/summary?uat_short_name=xxx&tags_id=xxxx&invite_id=xxxxxxxx
 ```
 
 * H5获取话题标签列表 (分页)
