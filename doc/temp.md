@@ -26,7 +26,7 @@ moments_id
 ```
 服务:GaaS
 method:POST
-/v1/merculetManagement/moments/create/tags
+/v1/merculetManagement/moments/tags/create
 {
 	"title":"标题",
 	"content":"内容",
