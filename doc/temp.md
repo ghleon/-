@@ -18,13 +18,12 @@ friend_circle_id
 moments_id
 
 ================ 特别注意 ================
+```
 
+* GaaS删除话题标签作出提示：会解除标签和所有视频号的关联关系
 
-
-
-删除话题标签作出提示：会解除标签和所有视频号的关联关系
-
-//创建话题标签
+* GaaS创建话题标签
+```
 服务:GaaS
 method:POST
 /v1/merculetManagement/moments/create/tags
@@ -35,9 +34,10 @@ method:POST
 	"extension":"扩展字段",
 	"rank":"权重"
 }
+```
 
-
-//话题列表 (分页)
+* GaaS话题标签列表 (分页)
+```
 服务:GaaS
 method:POST
 /v1/merculetManagement/moments/tags/page
@@ -47,8 +47,10 @@ method:POST
 	"page_number":1,
 	"page_size":10,
 }
+```
 
-//话题详情（分页）
+* GaaS话题标签详情（分页）
+```
 服务:GaaS
 method:POST
 /v1/merculetManagement/moments/tags/summary
@@ -58,46 +60,56 @@ method:POST
     "page_number":1,
     "page_size":10,
 }
+```
 
-//删除标签
+* GaaS删除话题标签
+```
 服务:GaaS
 method:POST
 /v1/merculetManagement/moments/tags/del
 
 body参数为tagsId数组:
 [xxxx,xxxx,xxx]
+```
 
-
-//启用话题标签
+* GaaS启用话题标签
+```
 服务:GaaS
 method:GET
 /v1/merculetManagement/moments/tags/enable?id=xxxx
+```
 
-
-//停用话题标签
+* GaaS停用话题标签
+```
 服务:GaaS
 method:GET
 /v1/merculetManagement/moments/tags/disable?id=xxxx
+```
 
-
-//视频号内容基本详情
+* GaaS视频号内容基本详情
+```
 服务:GaaS
 method:GET
 /v1/merculetManagement/moments/summary?id=xxxx
-
 ```
 
 
-* 获取话题标签列表 (分页)
-
+======================== 
+* H5获取话题标签列表 (分页)
 ```
 服务:community
 method:GET
 /api/v1/score/community/moments/tags/page?uat_short_name=xxx&page_number=1&page_size=10
 ```
 
-* 获取话题标签列表 (分页)
+* H5获取单个话题标签基本信息
+```
+服务:community
+method:GET
+/api/v1/score/community/moments/tags/summary?uat_short_name=xxx&tags_id=xxxx
+```
 
+* H5获取话题标签列表 (分页)
 ```
 服务:community
 method:GET
