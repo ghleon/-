@@ -26,7 +26,7 @@ HashMap的扩容机制：
 
 >什么时候resize呢？
 
-有两个因素： 
+有两个因素：     
 
 ```
 Capacity：HashMap当前长度。
