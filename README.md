@@ -1,2 +1,2 @@
 #### 笔记📒
-java study notes
+study notes
