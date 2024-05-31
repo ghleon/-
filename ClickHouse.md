@@ -17,7 +17,7 @@
 
 两者在存储方式上对比： 
 
-<img src="/Users/leon/Desktop/document/笔记📒/images/0fb03a0a66d54f5b9214be4ecca64c9a~tplv-k3u1fbpfcp-zoom-in-crop-mark:4536:0:0:0.awebp.png" alt="img" style="zoom:50%;" align="left"/>
+<img src="./images/0fb03a0a66d54f5b9214be4ecca64c9a~tplv-k3u1fbpfcp-zoom-in-crop-mark:4536:0:0:0.awebp.png" alt="img" style="zoom:50%;" align="left"/>
 
 以上是ClickHouse基本介绍，更多可以查阅[官方手册](https://link.juejin.cn?target=https%3A%2F%2Fclickhouse.tech%2Fdocs%2Fzh%2F)
 
@@ -62,7 +62,7 @@ CREATE TABLE [IF NOT EXISTS] [db.]table_name ENGINE = Mergetree AS SELECT * FROM
 
 **临时表** 
 
-<img src="/Users/leon/Desktop/document/笔记📒/images/3209064442fd42a79ef4ffab23fcc7fe~tplv-k3u1fbpfcp-zoom-in-crop-mark:4536:0:0:0.awebp.png" alt="img" style="zoom: 67%;" align="left"/> 
+<img src="./images/3209064442fd42a79ef4ffab23fcc7fe~tplv-k3u1fbpfcp-zoom-in-crop-mark:4536:0:0:0.awebp.png" alt="img" style="zoom: 67%;" align="left"/>
 
 图片来源：[携程](https://link.juejin.cn?target=https%3A%2F%2Fcloud.tencent.com%2Fdeveloper%2Farticle%2F1462633) 新建temp中间表，将Mysql数据全量同步到ClickHouse内temp表，再替换原ClickHouse中的表，适用数据量适度，增量和变量频繁的场景
 
@@ -84,13 +84,13 @@ CREATE TABLE [IF NOT EXISTS] [db.]table_name ENGINE = Mergetree AS SELECT * FROM
 
 用Mysql的语句查询，发现报错：
 
- <img src="/Users/leon/Desktop/document/笔记📒/images/2512713e9bc242b7b5c72dbe9b0ae016~tplv-k3u1fbpfcp-zoom-in-crop-mark:4536:0:0:0.awebp.png" alt="img" style="zoom:50%;" align="left"/> 
+ <img src="./images/2512713e9bc242b7b5c72dbe9b0ae016~tplv-k3u1fbpfcp-zoom-in-crop-mark:4536:0:0:0.awebp.png" alt="img" style="zoom:50%;" align="left"/>
 
 **解决方案**：LEFT JOIN B b ON toUInt32(h.id) = toUInt32(ec.post_id)，中转一下，统一无符号类型关联
 
 ##### 2.删除或更新是异步执行，只保证最终一致性
 
-查询CK手册发现，即便对数据一致性支持最好的Mergetree，也只是保证最终一致性： <img src="/Users/leon/Desktop/document/笔记📒/images/bb4bc1f23272462b994992b91c05b512~tplv-k3u1fbpfcp-zoom-in-crop-mark:4536:0:0:0.awebp.png" alt="img" style="zoom: 50%;" /> 
+查询CK手册发现，即便对数据一致性支持最好的Mergetree，也只是保证最终一致性： <img src="./images/bb4bc1f23272462b994992b91c05b512~tplv-k3u1fbpfcp-zoom-in-crop-mark:4536:0:0:0.awebp.png" alt="img" style="zoom: 50%;" />
 
 如果对数据一致性要求较高，推荐大家做全量同步来解决
 
